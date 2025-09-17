@@ -1,12 +1,13 @@
-My groupmembers are:
+My group members are:
 - Wilber Castillo
 - Aqib Akhtar
 - Zachary Sugarman
 - Eric Keeton
 - Darell Limtsen
 - Jorge Castillo
-
-
-
-
------------------- Fill in some information about your project under this ------------------
+  
+------------------ Medicode: A Medicine Management System ------------------
+- Manages a list of patients with different prescribed medicines
+- Explains reactions between medicines and elaborates in detail about symptoms
+- Provides a color-based symptom severity system that will advise you if you need to stop taking a specific medicine
+  
