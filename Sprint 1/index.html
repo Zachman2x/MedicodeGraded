@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>MediCode</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+
+  <body>
+    <!-- MAIN DISCLAIMER OVERLAY (shown first unless already accepted) -->
+    <div id="gate-overlay" class="overlay">
+      <div class="overlay-card">
+        <h2>Disclaimer</h2>
+        <p>
+          This tool is for research / educational use only. It is not medical
+          advice. Do not rely on this for treatment or decision-making. Consult
+          a licensed professional.
+        </p>
+
+        <div class="overlay-buttons">
+          <button id="btnAccept">Accept</button>
+          <button id="btnDecline" class="secondary">Decline</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DECLINE OVERLAY (only shown immediately after user clicks "Decline") -->
+    <div id="decline-overlay" class="overlay hidden">
+      <div class="overlay-card">
+        <h2>Access blocked</h2>
+        <p>
+          You chose not to accept the disclaimer. Because of that, the app is
+          disabled and you can’t continue.
+        </p>
+        <p>
+          If you’d like to use MediCode, you’ll need to read and accept the
+          disclaimer.
+        </p>
+
+        <div class="overlay-buttons">
+          <button id="btnBackToDisclaimer">Return to Disclaimer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- App (initially blurred/locked until Accept = true) -->
+    <div id="app-root" class="app-locked">
+      <div class="container">
+        <h1>MediCode MVP <span class="muted">• RxNorm + openFDA</span></h1>
+
+        <div class="row">
+          <div class="stack">
+            <!-- User Input Form -->
+            <div class="card stack">
+              <label for="drugs">
+                <strong>
+                  Enter drug names/ingredients (at least two medications)
+                </strong>
+                <span class="muted">
+                  <br />(one per line or separate by commas)
+                </span>
+              </label>
+
+              <textarea
+                id="drugs"
+                rows="8"
+                placeholder="e.g.
+Advil 200 mg
+ibuprofen
+warfarin
+Coumadin
+atorvastatin
+Lipitor"
+              ></textarea>
+
+              <div class="grid" style="grid-template-columns: 1fr auto">
+                <div id="status" class="muted small">Idle.</div>
+                <button id="analyze">Enter Medications</button>
+              </div>
+            </div>
+
+            <div class="card stack" id="section-dedup" style="display: none">
+              <h3>Deduped Ingredients</h3>
+              <div id="dedupList" class="list-inline"></div>
+              <div class="footer">
+                Brands/generics are represented by ingredients.
+                <span class="mono">(TTY=IN)</span>.
+              </div>
+            </div>
+
+            <div class="card" id="section-pairs" style="display: none">
+              <div class="flex">
+                <h3 style="margin: 0">Unique Ingredient Pairs</h3>
+                <button
+                  id="btnSaveMedList"
+                  disabled
+                  title="Save current searches to My Med List"
+                >
+                  Save Med List
+                </button>
+              </div>
+
+              <table class="table" id="pairsTable" style="margin-top: 0.6rem">
+                <thead>
+                  <tr>
+                    <th>Ingredient A</th>
+                    <th>Ingredient B</th>
+                    <th>A mentions B</th>
+                    <th>B mentions A</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+
+              <div class="footer">Not clinical advice.</div>
+            </div>
+          </div>
+
+          <!-- RIGHT COLUMN -->
+          <div class="stack">
+            <!-- My Med List panel -->
+            <div class="card" id="section-medlist" style="margin-bottom: 1rem">
+              <div class="flex">
+                <h3 style="margin: 0">My Med List</h3>
+                <div class="gap-sm">
+                  <button id="btnLoadMedList" disabled>Load My Med List</button>
+                  <button id="btnClearMedList" class="danger">
+                    Delete Med List
+                  </button>
+                </div>
+              </div>
+              <div id="medListContainer" style="margin-top: 0.75rem"></div>
+            </div>
+
+            <!-- Footer / Reminder -->
+            <div class="card footer">
+              <strong>Disclaimer:</strong> This software parses FDA label text
+              (“Drug Interactions”) and does a text match. It is not a curated
+              interaction engine and is for research/education only. Consult a
+              professional for medical guidance.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script src="disclaimer.js"></script>
+    <script type="module" src="./modules/main.js"></script>
+    <script type="module" src="./modules/test/indexTest.js"></script>
+  </body>
+</html>
