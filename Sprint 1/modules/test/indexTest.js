@@ -1,5 +1,7 @@
 // Elements to test
-const $drugs = document.getElementById("drugs");
+// const $drugs = document.getElementById("drugs");
+const $drugs = document.querySelectorAll(".drugClass");
+
 const $analyze = document.getElementById("analyze");
 const $status = document.getElementById("status");
 const $dedup = document.getElementById("section-dedup");
@@ -37,9 +39,10 @@ const $medListContainer = document.getElementById("medListContainer");
 // Button Test
 $analyze.addEventListener("click", () => {
   console.log("[Analyze] clicked");
-  const inputs = $drugs.value
-    .split(/\n|,/)
-    .map((s) => s.trim())
+  
+  const $drugs = document.querySelectorAll(".drugClass");
+  const inputs = Array.from($drugs)
+    .map((s) => s.value)
     .filter(Boolean);
   console.log("[Analyze] inputs:", inputs);
 
@@ -51,11 +54,11 @@ $analyze.addEventListener("click", () => {
     $dedup.style.display = "none";
     $pairs.style.display = "none";
 
-    $debugN.textContent = JSON.stringify(
-      inputs.map((q) => ({ query: q })),
-      null,
-      2
-    );
-    $debugS.textContent = "(test debug text content)";
+    // $debugN.textContent = JSON.stringify(
+    //   inputs.map((q) => ({ query: q })),
+    //   null,
+    //   2
+    // );
+    // $debugS.textContent = "(test debug text content)";
   }, 1000);
 });
