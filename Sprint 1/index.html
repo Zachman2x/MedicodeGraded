@@ -62,17 +62,64 @@
                 </span>
               </label>
 
-              <textarea
-                id="drugs"
-                rows="8"
-                placeholder="e.g.
-Advil 200 mg
-ibuprofen
-warfarin
-Coumadin
-atorvastatin
-Lipitor"
-              ></textarea>
+
+<!--Start of text area -->
+                <div id="drug-fields">
+                  <div class="drug-input">
+                    <input type="text" name="drug[]" placeholder="e.g. Advil 200 mg" required />
+                    <button type="button" class="delete-btn" disabled>-Delete Medication </button>
+                  </div>
+
+                  <div class="drug-input">
+                    <input type="text" name="drug[]" placeholder="e.g. ibuprofen" required />
+                    <button type="button" class="delete-btn" disabled>- Delete Medication</button>
+                  </div>
+
+                </div>
+
+                  <button type="button" id="add-field">+ Add Medication</button>
+
+
+                <script>
+                const container = document.getElementById('drug-fields');
+                const addBtn = document.getElementById('add-field');
+
+                function updateDeleteButtons() 
+                {
+                  const deleteButtons = container.querySelectorAll('.delete-btn');
+                  const totalFields = deleteButtons.length;
+                  deleteButtons.forEach(btn => 
+                  {
+                    btn.disabled = totalFields <= 2; 
+                  });
+                }
+
+                addBtn.addEventListener('click', () => 
+                {
+                  const div = document.createElement('div');
+                  div.className = 'drug-input';
+                  div.innerHTML = `
+                    <input type="text" name="drug[]" placeholder="Enter another medication" required />
+                    <button type="button" class="delete-btn">- Delete Medication</button>
+                  `;
+                  container.appendChild(div);
+                  updateDeleteButtons();
+                });
+
+                container.addEventListener('click', (e) => 
+                {
+                  if (e.target.classList.contains('delete-btn')) 
+                  {
+                    e.target.parentElement.remove();
+                    updateDeleteButtons();
+                  }
+                });
+
+                updateDeleteButtons();
+              </script>
+
+
+<!--End of Text Area-->
 
               <div class="grid" style="grid-template-columns: 1fr auto">
                 <div id="status" class="muted small">Idle.</div>
