@@ -1,31 +1,70 @@
 const container = document.getElementById("drug-fields");
 const addBtn = document.getElementById("add-field");
+const regex = /^[A-Za-z\- ]+$/;
 
 document.addEventListener("DOMContentLoaded", () => {
   const analyzeBtn = document.getElementById("analyze");
+  const errorMessage = document.querySelector(".errorMessage");
 
-  // Function: Get all drug input fields
+  // Gets all drug input fields
   function getDrugInputs() {
     return container.querySelectorAll(".drugClass");
   }
 
-  // Function: Enable or disable the Analyze button
-  function updateAnalyzeButton() {
-    const hasInput = Array.from(getDrugInputs()).some(
-      (input) => input.value.trim().length > 0
-    );
-    analyzeBtn.disabled = !hasInput;
+  // Check regex for all non-empty inputs
+  // change CSS to highlight failed inputs
+  function regexPass() {
+    const inputs = getDrugInputs();
+    let allValid = true;
+
+    for (const input of inputs) {
+      const value = input.value.trim();
+
+      if (value === "") {
+        input.classList.remove("invalid-input");
+        continue;
+      }
+
+      if (!regex.test(value)) {
+        input.classList.add("invalid-input");
+        allValid = false;
+      } else {
+        input.classList.remove("invalid-input");
+      }
+    }
+
+    return allValid;
   }
 
-  // Function: Enable/disable delete buttons
+  // Enable or disable the Analyze button + show/hide error
+  function updateAnalyzeButton() {
+    const filledCount = Array.from(getDrugInputs()).filter(
+      (input) => input.value.trim().length > 0
+    ).length;
+
+    const allValid = regexPass();
+
+    // must have at least 2 filled AND all valid
+    analyzeBtn.disabled = !(filledCount >= 2 && allValid);
+
+    if (!allValid) {
+      errorMessage.style.display = "block";
+    } else {
+      errorMessage.style.display = "none";
+    }
+  }
+
+  // Enables delete "X" buttons if there are 2 or more total rows
   function updateDeleteButtons() {
     const buttons = container.querySelectorAll(".delete-btn");
+
+    const unlockAll = buttons.length >= 3;
+
     buttons.forEach((btn) => {
-      btn.disabled = buttons.length <= 2;
+      btn.disabled = !unlockAll;
     });
   }
 
-  // Function: Add a new drug input field
   function addDrugField() {
     const div = document.createElement("div");
     div.className = "drug-input";
@@ -37,33 +76,47 @@ document.addEventListener("DOMContentLoaded", () => {
         placeholder="Enter another medication"
         required
       />
-      <button type="button" class="delete-btn">- Delete Medication</button>
+      <button
+        type="button"
+        class="delete-btn"
+        aria-label="Remove this medication"
+        title="Remove this medication"
+      >
+        ✕
+      </button>
     `;
+
     container.appendChild(div);
+
+    const newInput = div.querySelector(".drugClass");
+    newInput.addEventListener("input", updateAnalyzeButton);
+    newInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && e.ctrlKey && !analyzeBtn.disabled) {
+        analyzeBtn.click();
+      }
+    });
+
     updateDeleteButtons();
     updateAnalyzeButton();
-
-    // Add input listener for new field
-    div.querySelector(".drugClass").addEventListener("input", updateAnalyzeButton);
   }
 
-  // Add field button click
-  addBtn.addEventListener("click", addDrugField);
-
-  // Delete a specific drug input field
+  // Click handler for remove medication buttons "x"
   container.addEventListener("click", (e) => {
     if (e.target.classList.contains("delete-btn")) {
-      e.target.parentElement.remove();
+      const btn = e.target;
+      if (btn.disabled) {
+        return;
+      }
+      // removes whole row
+      btn.parentElement.remove();
+
       updateDeleteButtons();
       updateAnalyzeButton();
     }
   });
 
-  // Input listeners for existing fields
   getDrugInputs().forEach((input) => {
     input.addEventListener("input", updateAnalyzeButton);
-
-    // Ctrl + Enter to trigger Analyze
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && e.ctrlKey && !analyzeBtn.disabled) {
         analyzeBtn.click();
@@ -71,7 +124,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // Initial setup
+  // Add drug input field button
+  addBtn.addEventListener("click", addDrugField);
+
   updateDeleteButtons();
   updateAnalyzeButton();
 });

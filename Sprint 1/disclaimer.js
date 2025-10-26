@@ -1,6 +1,6 @@
 (function () {
   // Overlays
-  const gateOverlay = document.getElementById("gate-overlay");       
+  const gateOverlay = document.getElementById("gate-overlay");
   const declineOverlay = document.getElementById("decline-overlay");
   const appRoot = document.getElementById("app-root");
 
@@ -28,17 +28,15 @@
     appRoot.classList.remove("app-locked");
   }
 
-
   // Local Storage Logic
   let accepted = localStorage.getItem(STORAGE_KEY);
 
-    // If there's no value yet, first-time visitor:
-    // create ls variable as "false"
+  // If there's no value yet, first-time visitor:
+  // create ls variable as "false"
   if (accepted === null) {
     localStorage.setItem(STORAGE_KEY, "false");
     accepted = "false";
   }
-
 
   if (accepted === "true") {
     // Returning visitor:
@@ -61,12 +59,10 @@
     lockApp();
   }
 
-
   // User ACCEPTS disclaimer
   btnAccept.addEventListener("click", () => {
     localStorage.setItem(STORAGE_KEY, "true");
-    console.log("User accepted disclaimer:", true)
-
+    console.log("User accepted disclaimer:", true);
 
     hide(gateOverlay);
     hide(declineOverlay);
@@ -76,8 +72,7 @@
   // User DECLINES disclaimer
   btnDecline.addEventListener("click", () => {
     localStorage.setItem(STORAGE_KEY, "false");
-    console.log("User accepted disclaimer:", false)
-
+    console.log("User accepted disclaimer:", false);
 
     hide(gateOverlay);
     show(declineOverlay);
@@ -86,7 +81,6 @@
 
   // Return to Disclaimer Button
   btnBackToDisclaimer.addEventListener("click", () => {
-
     hide(declineOverlay);
     show(gateOverlay);
     lockApp();

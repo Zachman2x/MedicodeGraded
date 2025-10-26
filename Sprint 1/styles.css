@@ -300,3 +300,67 @@ button:disabled {
   cursor: not-allowed;
   filter: grayscale(0.4);
 }
+
+
+.drug-input {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;        
+  margin-bottom: 0.5rem;
+  position: relative;
+}
+
+.drug-input .drugClass {
+  flex: 1;            
+  padding-right: 2rem; 
+}
+
+.drug-input .delete-btn {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  color: #888;
+}
+
+.drug-input .delete-btn:hover:not([disabled]) {
+  color: #c00;
+}
+
+.drug-input .delete-btn[disabled] {
+  cursor: default;
+  opacity: 0.3;
+}
+
+/* Centers +Add Medication Button */
+#add-field {
+  display: block;
+  margin: 0.75rem auto;   
+  padding: 0.4rem 1rem;
+  font-size: 0.95rem;
+  background-color: #3df50b;
+  background: linear-gradient(180deg, #48b206, #3895f8);
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+#add-field:hover {
+  background-color: #e5e5e5;
+}
+
+
+.invalid-input {
+  border: 2px solid red;
+}
+
+.drugClass.invalid-input,
+.drugClass.invalid-input:focus {
+  border: 2px solid red;
+  outline: none;
+}
+
+
