@@ -90,6 +90,7 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
 
     container.appendChild(div);
+    console.log("Drug input field added (total:", getDrugInputs().length, ")");
 
     const newInput = div.querySelector(".drugClass");
     newInput.addEventListener("input", updateAnalyzeButton);
@@ -112,6 +113,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       // removes whole row
       btn.parentElement.remove();
+      console.log("Drug input field removed (total:", getDrugInputs().length, ")");
 
       updateDeleteButtons();
       updateAnalyzeButton();
