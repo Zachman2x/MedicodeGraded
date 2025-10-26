@@ -9,130 +9,157 @@ async function fetchJson(url) {
   return res.json();
 }
 
-// Big Fetch Function
-// fetches and caches FDA Drug label data for ingredient
-// extracts interaction text mentions as chunks
-// gets manufacturer name, applicaiton number, product NDC
-// builds daily Med link
+// check if product name is a clean, single ingredient (not "AND", "+", etc.)
+function isCleanSingleName(returnedName, wantedName) {
+  if (!returnedName) return false;
 
-//  Returns an object with:
-//   - lines[]                : lines scanned where mentions are found
-//   - fdaLabelName           : identifier/name from FDA data
-//   - fdaApplication         : optional application/identifier info from FDA if available
-//   - dailyMedName           : display name for the drug (brand or generic)
-//   - dailyMedLink           : public DailyMed link
- 
+  const upReturned = returnedName.toUpperCase().trim();
+  const upWanted = wantedName.toUpperCase().trim();
 
+  if (upReturned !== upWanted) return false;
+
+  const comboTokens = [" AND ", " WITH ", " / ", " + ", " & "];
+  return !comboTokens.some((tok) => upReturned.includes(tok));
+}
+
+// normalize an FDA "label" into our consistent shape
+function buildPayloadFromLabel(label, fallbackName) {
+  const chunks = [];
+  if (label.drug_interactions) chunks.push(...label.drug_interactions);
+  if (label.warnings) chunks.push(...label.warnings);
+  if (label.precautions) chunks.push(...label.precautions);
+  if (label.contraindications) chunks.push(...label.contraindications);
+
+  const lines = chunks.map((t) => t.replace(/\s+/g, " ").trim()).filter(Boolean);
+
+  const brandName =
+    (label.openfda &&
+      (label.openfda.brand_name?.[0] ||
+        label.openfda.generic_name?.[0])) ||
+    fallbackName;
+
+  const manu = label.openfda?.manufacturer_name?.[0] || "";
+  const appNum = label.openfda?.application_number?.[0] || "";
+  const ndc = label.openfda?.product_ndc?.[0] || "";
+
+  const fdaLabelName = manu ? `${brandName} (${manu})` : brandName;
+  const fdaApplication = appNum || ndc || "";
+
+  const splId =
+    label.spl_set_id ||
+    label.set_id ||
+    (label.openfda && label.openfda.spl_set_id?.[0]) ||
+    "";
+
+  const dailyMedLink = splId
+    ? `https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=${splId}`
+    : "";
+
+  return {
+    lines: lines.length
+      ? lines
+      : [`No interaction text extracted for ${fallbackName}.`],
+    fdaLabelName,
+    fdaApplication,
+    dailyMedName: brandName,
+    dailyMedLink,
+    _rawHasSetId: !!splId,
+    _rawHasNdc: !!ndc,
+  };
+}
+
+// core function
 export async function getLabelInteractionsByIngredient(ingredientName) {
   const key = ingredientName.toUpperCase();
 
-  // If its in the cache already, use it
+  // 1. cache first
   if (labelCache.has(key)) {
     const cached = labelCache.get(key);
-    return {
-      lines: [...cached.lines],
-      fdaLabelName: cached.fdaLabelName,
-      fdaApplication: cached.fdaApplication,
-      dailyMedName: cached.dailyMedName,
-      dailyMedLink: cached.dailyMedLink,
-    };
+    return { ...cached, lines: [...cached.lines] };
   }
 
-  const qIng = encodeURIComponent(`"${ingredientName}"`);
-  const url =
-    `https://api.fda.gov/drug/label.json?search=` +
-    `openfda.substance_name:${qIng}+AND+drug_interactions:*&limit=1`;
+  const buildUrl = (field) => {
+    const qIng = encodeURIComponent(`"${ingredientName}"`);
+    return (
+      `https://api.fda.gov/drug/label.json?search=` +
+      `openfda.${field}:${qIng}+AND+drug_interactions:*&limit=5`
+    );
+  };
 
-  let out = {
-    lines: [
-      // fallback message for missing input value cases
-      `No interaction data found in FDA label for ${ingredientName}.`,
-    ],
+  // helper to fetch + rank results
+  async function tryFetch(url) {
+    const data = await fetchJson(url);
+    const results = data.results || [];
+    if (!results.length) return null;
+
+    const payloads = results.map((label) =>
+      buildPayloadFromLabel(label, ingredientName)
+    );
+
+    const cleanSingles = [];
+    const others = [];
+    for (const p of payloads) {
+      if (isCleanSingleName(p.dailyMedName, ingredientName)) {
+        cleanSingles.push(p);
+      } else {
+        others.push(p);
+      }
+    }
+
+    let bestClean =
+      cleanSingles.find((p) => p._rawHasSetId) ||
+      cleanSingles.find((p) => p._rawHasNdc) ||
+      cleanSingles[0];
+
+    let chosen = bestClean || others[0] || payloads[0];
+
+    if (!isCleanSingleName(chosen.dailyMedName, ingredientName)) {
+      chosen = {
+        ...chosen,
+        dailyMedName: `DailyMed Source Unavailable for: ${ingredientName}`,
+        dailyMedLink: "",
+      };
+    }
+
+    delete chosen._rawHasSetId;
+    delete chosen._rawHasNdc;
+    return chosen;
+  }
+
+  let finalPayload = {
+    lines: [`Unable to retrieve FDA interaction text for ${ingredientName}.`],
     fdaLabelName: ingredientName,
     fdaApplication: "",
-    dailyMedName: ingredientName,
+    dailyMedName: `DailyMed Source Unavailable for: ${ingredientName}`,
     dailyMedLink: "",
   };
 
   try {
-    const data = await fetchJson(url);
+    // try generic first
+    finalPayload = (await tryFetch(buildUrl("substance_name"))) || finalPayload;
 
-    if (data.results && data.results.length > 0) {
-      const label = data.results[0];
-
-      // 1. Extract text chunks that we actually parse for mentions
-      const chunks = [];
-      if (label.drug_interactions) chunks.push(...label.drug_interactions);
-      if (label.warnings) chunks.push(...label.warnings);
-      if (label.precautions) chunks.push(...label.precautions);
-      if (label.contraindications) chunks.push(...label.contraindications);
-
-      const lines = chunks
-        .map((t) => t.replace(/\s+/g, " ").trim())
-        .filter(Boolean);
-
-      const brandName =
-        (label.openfda &&
-          (label.openfda.brand_name?.[0] ||
-            label.openfda.generic_name?.[0])) ||
-        ingredientName;
-
-    // 2. Get info to display 
-    // - Manufatururer Name
-    // - Applicaiton number
-    // - Product NDC
-      const manu =
-        label.openfda?.manufacturer_name?.[0] || "";
-      const appNum =
-        label.openfda?.application_number?.[0] || "";
-      const ndc =
-        label.openfda?.product_ndc?.[0] || "";
-
-      const fdaLabelName = manu
-        ? `${brandName} (${manu})`
-        : brandName;
-
-      const fdaApplication = appNum || ndc || "";
-
-      // 3. Build DailyMed link 
-      const splId =
-        label.spl_set_id ||
-        label.set_id ||
-        (label.openfda && label.openfda.spl_set_id?.[0]) ||
-        "";
-
-      const dailyMedLink = splId
-        ? `https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=${splId}`
-        : "";
-
-      out = {
-        lines: lines.length ? lines : [`No interaction text extracted for ${ingredientName}.`],
-        fdaLabelName,
-        fdaApplication,
-        dailyMedName: brandName,
-        dailyMedLink,
-      };
+    // if still no valid DailyMed link, try brand name fallback
+    if (
+      !finalPayload.dailyMedLink &&
+      finalPayload.dailyMedName.startsWith("DailyMed Source Unavailable")
+    ) {
+      const brandResult = await tryFetch(buildUrl("brand_name"));
+      if (brandResult && brandResult.dailyMedLink) {
+        finalPayload = brandResult;
+      }
     }
-  } catch (err) {
-    out = {
-      lines: [
-        `Unable to retrieve FDA interaction text for ${ingredientName}.`,
-      ],
-      fdaLabelName: ingredientName,
-      fdaApplication: "",
-      dailyMedName: ingredientName,
-      dailyMedLink: "",
-    };
+  } catch {
+    // keep fallback
   }
 
-  // 4. Save to cache
+  // 3. cache + return
   labelCache.set(key, {
-    lines: [...out.lines],
-    fdaLabelName: out.fdaLabelName,
-    fdaApplication: out.fdaApplication,
-    dailyMedName: out.dailyMedName,
-    dailyMedLink: out.dailyMedLink,
+    lines: [...finalPayload.lines],
+    fdaLabelName: finalPayload.fdaLabelName,
+    fdaApplication: finalPayload.fdaApplication,
+    dailyMedName: finalPayload.dailyMedName,
+    dailyMedLink: finalPayload.dailyMedLink,
   });
 
-  return out;
+  return finalPayload;
 }
