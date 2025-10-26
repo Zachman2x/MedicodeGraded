@@ -364,3 +364,86 @@ button:disabled {
 }
 
 
+/* Summary Table Styles */
+
+/* ================================
+   INTERACTION SUMMARY TABLE FIX
+   ================================ */
+
+/* Table base */
+#summaryTable {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: #f9f9f9;
+  color: #222; /* ensure text is readable */
+}
+
+/* Table headers */
+#summaryTable th {
+  background-color: #004080; /* deep blue header */
+  color: #fff;
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 2px solid #ccc;
+}
+
+/* Table rows */
+#summaryTable td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #ddd;
+  background-color: #ced0d1;
+}
+
+/* Alternate row shading */
+#summaryTable tr:nth-child(even) {
+  background-color: #f2f6fb;
+}
+
+/* Hover effect for readability */
+#summaryTable tr.summary-row:hover {
+  background-color: #eaf2ff;
+}
+
+/* Details row background */
+#summaryTable tr.details-row td {
+  background-color: #554848; 
+  color: #222;
+}
+
+/* Links */
+#summaryTable a {
+  color: #0056b3;
+  text-decoration: none;
+}
+
+#summaryTable a:hover {
+  text-decoration: underline;
+}
+
+/* Pill-style chip for deduped ingredients */
+#dedupList .pill {
+  background-color: #eef2ff;
+  color: #222;
+  border: 1px solid #ccd5ff;
+}
+
+.icon-mention {
+  color: #16a34a; 
+  font-weight: bold;
+  margin-right: 0.25rem;
+}
+.icon-nonmention {
+  color: #dc2626;
+  font-weight: bold;
+  margin-right: 0.25rem;
+}
+
+.not-found-input {
+  border: 2px solid orange !important;
+  /* background-color: #fff4e0 !important; */
+}
+
+.status-warning {
+  color: orange;           
+  font-weight: 500;
+}

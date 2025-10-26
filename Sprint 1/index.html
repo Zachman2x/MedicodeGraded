@@ -123,13 +123,12 @@
               <div id="dedupList" class="list-inline"></div>
               <div class="footer">
                 Brands/generics are represented by ingredients.
-                <span class="mono">(TTY=IN)</span>.
               </div>
             </div>
 
             <div class="card" id="section-pairs" style="display: none">
               <div class="flex">
-                <h3 style="margin: 0">Unique Ingredient Pairs</h3>
+                <h3 style="margin: 0">Interaction Summary</h3>
                 <button
                   id="btnSaveMedList"
                   disabled
@@ -138,21 +137,22 @@
                   Save Med List
                 </button>
               </div>
-
-              <table class="table" id="pairsTable" style="margin-top: 0.6rem">
+            
+              <table class="table" id="summaryTable" style="margin-top: 0.6rem">
                 <thead>
                   <tr>
-                    <th>Ingredient A</th>
-                    <th>Ingredient B</th>
-                    <th>A mentions B</th>
-                    <th>B mentions A</th>
+                    <th>Ingredient</th>
+                    <th>Mentions</th>
+                    <th>Not Mentioned</th>
+                    <th>Source</th>
                   </tr>
                 </thead>
-                <tbody></tbody>
+                <tbody id="summaryTableBody"></tbody>
               </table>
-
+            
               <div class="footer">Not clinical advice.</div>
             </div>
+
           </div>
 
           <!-- RIGHT COLUMN -->
@@ -163,13 +163,12 @@
                 <h3 style="margin: 0">My Med List</h3>
                 <div class="gap-sm">
                   <button id="btnLoadMedList" disabled>Load My Med List</button>
-                  <button id="btnClearMedList" class="danger">
-                    Delete Med List
-                  </button>
+                  <button id="btnClearMedList" class="danger">Delete Med List</button>
                 </div>
               </div>
               <div id="medListContainer" style="margin-top: 0.75rem"></div>
             </div>
+
 
             <!-- Footer / Reminder -->
             <div class="card footer">
@@ -183,6 +182,6 @@
     </div>
     <script src="disclaimer.js"></script>
     <script type="module" src="./modules/main.js"></script>
-    <script type="module" src="./modules/test/indexTest.js"></script>
+    <!-- <script type="module" src="./modules/test/indexTest.js"></script> -->
   </body>
 </html>

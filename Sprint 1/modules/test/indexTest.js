@@ -1,5 +1,4 @@
-// Elements to test
-// const $drugs = document.getElementById("drugs");
+// No longer plugged in
 const $drugs = document.querySelectorAll(".drugClass");
 
 const $analyze = document.getElementById("analyze");

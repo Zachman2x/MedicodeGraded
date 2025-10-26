@@ -28,10 +28,10 @@
     appRoot.classList.remove("app-locked");
   }
 
-  // Local Storage Logic
+  // local Storage Logic
   let accepted = localStorage.getItem(STORAGE_KEY);
 
-  // If there's no value yet, first-time visitor:
+  // if there's no value yet, first-time visitor:
   // create ls variable as "false"
   if (accepted === null) {
     localStorage.setItem(STORAGE_KEY, "false");
