@@ -28,8 +28,11 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!regex.test(value)) {
         input.classList.add("invalid-input");
         allValid = false;
+        console.log(value);
+        console.log("Invalid Input Value");
       } else {
         input.classList.remove("invalid-input");
+        console.log("Valid Input Value");
       }
     }
 
