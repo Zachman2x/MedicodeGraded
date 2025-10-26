@@ -7,7 +7,7 @@ My group members are:
 - Jorge Castillo
   
 ------------------ Medicode: A Medicine Management System ------------------
-- Manages a list of patients with different prescribed medicines
-- Explains reactions between medicines and elaborates in detail about symptoms
-- Provides a color-based symptom severity system that will advise you if you need to stop taking a specific medicine
+- Allows a user to input a medication list and check for drug-drug interactions based on OpenFDA label source data
+- Highlights drug-drug interactions and provides OpenFDA label source data
+- Provides a color-based symptom severity system that will alert you if there are interactions between medications
   
