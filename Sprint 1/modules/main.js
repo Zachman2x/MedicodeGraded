@@ -327,7 +327,6 @@ async function onAnalyze() {
     setStatus($status, "Generating comparison pairs…");
 
     // buildUniquePairs currently takes a Map (ingIndex).
-    // We have keptNodes[], so let's rebuild a mini Map that mirrors ingIndex:
     const filteredIngIndex = new Map();
     for (const node of keptNodes) {
       filteredIngIndex.set(node.key, node);
@@ -489,7 +488,7 @@ function buildSnippets(fullText, hitNames) {
     while (startBoundary > 0 && fullText[startBoundary - 1] !== ".") {
       startBoundary--;
     }
-    // skip the "." itself if we landed exactly on it
+    // skip the "." if we land on it
     if (fullText[startBoundary] === ".") {
       startBoundary++;
     }
