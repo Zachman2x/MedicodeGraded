@@ -334,7 +334,18 @@ button:disabled {
   opacity: 0.3;
 }
 
-/* Centers +Add Medication Button */
+#btnSaveMedList {
+  background: linear-gradient(180deg, #22c55e, #16a34a); /* vibrant green gradient */
+  border: 1px solid #16a34a;
+  color: white;
+}
+
+#btnSaveMedList:hover {
+  background: linear-gradient(180deg, #16a34a, #15803d);
+}
+
+
+/* +Add Medication Button */
 #add-field {
   display: block;
   margin: 0.75rem auto;   
@@ -366,21 +377,16 @@ button:disabled {
 
 /* Summary Table Styles */
 
-/* ================================
-   INTERACTION SUMMARY TABLE FIX
-   ================================ */
-
-/* Table base */
 #summaryTable {
   width: 100%;
   border-collapse: collapse;
   background-color: #f9f9f9;
-  color: #222; /* ensure text is readable */
+  color: #222; 
 }
 
 /* Table headers */
 #summaryTable th {
-  background-color: #004080; /* deep blue header */
+  background-color: #004080; 
   color: #fff;
   text-align: left;
   padding: 0.5rem 0.75rem;
@@ -399,7 +405,7 @@ button:disabled {
   background-color: #f2f6fb;
 }
 
-/* Hover effect for readability */
+
 #summaryTable tr.summary-row:hover {
   background-color: #eaf2ff;
 }
@@ -410,7 +416,7 @@ button:disabled {
   color: #222;
 }
 
-/* Links */
+
 #summaryTable a {
   color: #0056b3;
   text-decoration: none;
@@ -420,7 +426,7 @@ button:disabled {
   text-decoration: underline;
 }
 
-/* Pill-style chip for deduped ingredients */
+
 #dedupList .pill {
   background-color: #eef2ff;
   color: #222;
@@ -440,10 +446,25 @@ button:disabled {
 
 .not-found-input {
   border: 2px solid orange !important;
-  /* background-color: #fff4e0 !important; */
 }
 
 .status-warning {
   color: orange;           
   font-weight: 500;
 }
+
+
+.drugClass {
+  background-color: #e8efff;      
+  color: #0f172a;                  
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 0.75rem 0.9rem;
+  font-size: 0.95rem;
+  width: 100%;
+  outline: none;
+  font-family: inherit;
+}
+
+
+

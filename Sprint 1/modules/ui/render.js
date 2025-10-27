@@ -146,34 +146,30 @@ export function renderInteractionSummary(tbodyEl, summaryRows) {
     tdSource.style.fontSize = "0.8rem";
     tdSource.style.lineHeight = "1.4";
 
-    // FDA label 
+    // Build the FDA label line
     {
       const fdaLine = document.createElement("div");
-      fdaLine.textContent = row.fdaApplication
+    
+      // Construct label text like:
+      const labelText = row.fdaApplication
         ? `FDA label: ${row.fdaLabelName} [${row.fdaApplication}]`
         : `FDA label: ${row.fdaLabelName}`;
-      tdSource.appendChild(fdaLine);
-    }
-
-    // DailyMed link
-    {
-      const dmLine = document.createElement("div");
-
-      if (row.dailyMedLink) {
-        const a = document.createElement("a");
-        a.href = row.dailyMedLink;
-        a.target = "_blank";
-        a.rel = "noopener noreferrer";
-        a.textContent = `DailyMed: ${row.dailyMedName}`;
-        dmLine.appendChild(a);
-      } else {
-        dmLine.textContent = `DailyMed: ${row.dailyMedName}`;
-      }
-
+    
+      if (row.fdaJsonLink) {
+        // Make the label text clickable to the FDA JSON
+        const link = document.createElement("a");
+        link.href = row.fdaJsonLink;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = labelText;
       
-      dmLine.style.color = "#555";
-
-      tdSource.appendChild(dmLine);
+        fdaLine.appendChild(link);
+      } else {
+        // Fallback if no URL for some reason
+        fdaLine.textContent = labelText;
+      }
+    
+      tdSource.appendChild(fdaLine);
     }
 
     trMain.appendChild(tdSource);
@@ -225,7 +221,7 @@ export function renderInteractionSummary(tbodyEl, summaryRows) {
           snip.style.border = "1px solid #ddd";
           snip.style.borderRadius = "0.4rem";
           snip.style.padding = "0.5rem 0.75rem";
-          snip.textContent = m.snippet;
+          snip.innerHTML = m.snippet;
           item.appendChild(snip);
         }
 

@@ -1,4 +1,4 @@
-// No longer plugged in
+// Not hooked up ATM
 const $drugs = document.querySelectorAll(".drugClass");
 
 const $analyze = document.getElementById("analyze");

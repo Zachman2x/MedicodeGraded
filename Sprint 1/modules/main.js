@@ -89,13 +89,12 @@ async function onAnalyze() {
 
   try {
     // 2. Normalize each user-entered string
-
     const normalizedArray = await Promise.all(
       userInputs.map((q) => normalizeToIngredients(q))
     );
     console.log("[Analyze] normalizedArray (raw):", normalizedArray);
 
-    // Split valid vs invalid
+    // Split inputs into valid and invalid arrays
     const validNormalized = [];
     const invalidNormalized = [];
 
@@ -115,22 +114,31 @@ async function onAnalyze() {
     console.log("[Analyze] validNormalized:", validNormalized);
     console.log("[Analyze] invalidNormalized:", invalidNormalized);
 
-    // if we have invalids, collect names for messaging
+    // if we have bad inputs, collect names
     const badNames = invalidNormalized
       .map((n) => n.query || n.display || "")
       .filter(Boolean);
 
-    // highlight inputs that failed normalization
-    const inputs = document.querySelectorAll(".drugClass");
-    inputs.forEach((input) => {
-      const val = input.value.trim().toLowerCase();
-      // remove any old highlights first
-      input.classList.remove("not-found-input");
-      // if this value matches a bad name, highlight it orange
-      if (badNames.some((b) => b.toLowerCase() === val)) {
-        input.classList.add("not-found-input");
+      const ingToUserInputs = new Map();
+
+      for (const norm of validNormalized) {
+        const userText = norm.query || norm.display || "";
+        if (!userText) continue;
+      
+        if (Array.isArray(norm.ingredients)) {
+          for (const ing of norm.ingredients) {
+            if (!ing || typeof ing !== "string") continue;
+            const key = ing.toUpperCase();
+            if (!ingToUserInputs.has(key)) {
+              ingToUserInputs.set(key, new Set());
+            }
+            ingToUserInputs.get(key).add(userText);
+          }
+        }
       }
-    });
+
+      console.log("[Analyze] ingToUserInputs:", ingToUserInputs);
+
 
 
 
@@ -153,20 +161,22 @@ async function onAnalyze() {
         );
       }
 
-      // hide results sections
+      // hide results sections by default
       $sectionDedup.style.display = "none";
       $sectionPairs.style.display = "none";
+      $dedupList.innerHTML = "";
+      $summaryBody.innerHTML = "";
 
       latestNormalized = null;
       setDisabled($btnSave, true);
       return;
     }
 
-    // if >=2 valid meds, save for "Save Med List".
+    // if >=2 valid meds, enable save for "Save Med List" button.
     latestNormalized = validNormalized;
     setDisabled($btnSave, false);
 
-    // 4. DEDUPE ingredients
+    // 4. DEDUPE ingredients (same as you already have)
     setStatus($status, "Deduplicating ingredients…");
 
     const ingIndex = buildIngredientIndex(validNormalized);
@@ -175,116 +185,200 @@ async function onAnalyze() {
     if (ingIndex.size === 0) {
       const t1 = performance.now();
       const elapsedSec = ((t1 - t0) / 1000).toFixed(2);
-
+    
       setStatus(
         $status,
         `No valid ingredients were identified. (${elapsedSec}s)`
       );
-
+    
       $sectionDedup.style.display = "none";
       $sectionPairs.style.display = "none";
       setDisabled($btnSave, true);
       return;
     }
 
-    // render dedup
-    const dedupArray = [...ingIndex.values()].map((node) => ({
+    // 5. fetch FDA / DailyMed label data for each unique ingredient
+    setStatus(
+      $status,
+      `Fetching FDA interaction text for ${ingIndex.size} ingredient(s)…`
+    );
+
+    // stores FDA label data
+    const labelMap = new Map();    
+    // array from FDA queries we want to keep (queries that didn't return FDA label data)
+    const keptNodes = [];                 
+
+    // iterate each ingredient node from ingIndex
+    await limitedMap([...ingIndex.values()], 5, async (node) => {
+      const ingName = node.ingredient;
+      const payload = await getLabelInteractionsByIngredient(ingName);
+    
+      if (payload) {
+        // Good: FDA data identifies ingredients
+        labelMap.set(ingName.toUpperCase(), payload);
+        keptNodes.push(node); 
+      } else {
+        // Bad: FDA 404/no data, skip this ingredient entirely
+        console.log("[Analyze] Skipping (no FDA data):", ingName);
+      }
+    });
+
+    console.log("[Analyze] keptNodes:", keptNodes);
+    console.log("[Analyze] labelMap:", labelMap);
+
+
+    // determine which ingredient nodes got *rejected* by FDA (return whatever is not in keptNodes)
+    const rejectedNodes = [...ingIndex.values()].filter(
+      (node) => !keptNodes.find(kept => kept.ingredient === node.ingredient)
+    );
+
+    // set rejected ingredients back to user inputs
+    const fdaRejectedUserInputsSet = new Set();
+
+    for (const node of rejectedNodes) {
+      const key = node.ingredient.toUpperCase();
+      const originals = ingToUserInputs.get(key);
+    
+      if (originals && originals.size > 0) {
+        // add every user-entered string that mapped to this ingredient
+        for (const src of originals) {
+          fdaRejectedUserInputsSet.add(src);
+        }
+      } else {
+        fdaRejectedUserInputsSet.add(node.ingredient);
+      }
+    }
+
+    const fdaRejectedUserInputs = [...fdaRejectedUserInputsSet];
+    console.log("[Analyze] fdaRejectedUserInputs:", fdaRejectedUserInputs);
+
+    const lowerBadNames = badNames.map(n => n.toLowerCase());
+    const lowerFdaRejects = fdaRejectedUserInputs.map(n => n.toLowerCase());
+
+    const inputs = document.querySelectorAll(".drugClass");
+    inputs.forEach((input) => {
+      const val = input.value.trim().toLowerCase();
+    
+      // clear old highlight first
+      input.classList.remove("not-found-input");
+    
+      const isBadRxNorm = lowerBadNames.includes(val);
+      const isFdaRejected = lowerFdaRejects.includes(val);
+    
+      if (isBadRxNorm || isFdaRejected) {
+        input.classList.add("not-found-input");
+      }
+    });
+
+
+    function buildSkipMessages() {
+      const msgs = [];
+      
+      // RxNorm failures (never normalized at all)
+      for (const n of badNames) {
+        msgs.push(
+          `<span class="status-warning">${n} — not recognized as a medication. Check spelling or try the generic name.</span>`
+        );
+      }
+    
+      // FDA rejects (normalized, but FDA had no interaction data)
+      for (const n of fdaRejectedUserInputs) {
+        // Avoid showing duplicates if it's already in badNames
+        if (!badNames.includes(n)) {
+          msgs.push(
+            `<span class="status-warning">${n} — not recognized as a medication. Check spelling or try the generic name.</span>`
+          );
+        }
+      }
+    
+      return msgs.join("<br>");
+    }
+
+
+    // If fewer than 2 ingredients survived FDA check, don't display
+    if (keptNodes.length < 2) {
+      const t1 = performance.now();
+      const elapsedSec = ((t1 - t0) / 1000).toFixed(2);
+    
+      setStatus(
+        $status,
+        `Less than two FDA-backed medications to compare. (${elapsedSec}s)`
+      );
+    
+      $sectionDedup.style.display = "none";
+      $sectionPairs.style.display = "none";
+      $dedupList.innerHTML = "";
+      $summaryBody.innerHTML = "";
+    
+      latestNormalized = null;
+      setDisabled($btnSave, true);
+      return;
+    }
+
+    // 6. Render Deduped Ingredients UI using ONLY keptNodes
+    const dedupArray = keptNodes.map((node) => ({
       name: node.ingredient,
       rxcui: null,
     }));
     renderDedupList($dedupList, dedupArray);
     $sectionDedup.style.display = "";
 
-    // 5. build unique ingredient pairs
+    // 7. Build unique pairs from ONLY keptNodes
     setStatus($status, "Generating comparison pairs…");
 
-    // buildUniquePairs takes ingIndex (or its values)
-    // and return an array of [A,B] pairs like:
-    const pairs = buildUniquePairs(ingIndex);
-    console.log("[Analyze] pairs:", pairs);
+    // buildUniquePairs currently takes a Map (ingIndex).
+    // We have keptNodes[], so let's rebuild a mini Map that mirrors ingIndex:
+    const filteredIngIndex = new Map();
+    for (const node of keptNodes) {
+      filteredIngIndex.set(node.key, node);
+    }
+
+    const pairs = buildUniquePairs(filteredIngIndex);
+    console.log("[Analyze] pairs (FDA-backed only):", pairs);
 
     if (!pairs.length) {
       const t1 = performance.now();
       const elapsedSec = ((t1 - t0) / 1000).toFixed(2);
-
+    
       setStatus(
         $status,
-        `Only one unique ingredient after dedupe — no interactions to compare. (${elapsedSec}s)`
+        `Only one unique FDA-backed ingredient — no interactions to compare. (${elapsedSec}s)`
       );
-
+    
       $sectionPairs.style.display = "none";
       return;
     }
 
-    // 6. fetch FDA / DailyMed label data for each unique ingredient
-    const uniqueIngNames = [...ingIndex.values()].map((n) => n.ingredient);
-
-    setStatus(
-      $status,
-      `Fetching FDA interaction text for ${ingIndex.size} ingredient(s)…`
-    );
-
-    // labelMap will be: nameUpper -> payload from getLabelInteractionsByIngredient()
-    const labelMap = new Map();
-
-    // limitedMap should runs N tasks with concurrency cap 
-    await limitedMap(uniqueIngNames, 5, async (ingName) => {
-      const payload = await getLabelInteractionsByIngredient(ingName);
-      labelMap.set(ingName.toUpperCase(), payload);
-    });
-
-    console.log("[Analyze] labelMap:", labelMap);
-
-    // 7. build summary objects (one per ingredient)
+    // 8. Build summaries only for FDA-backed ingredients
     setStatus($status, "Building interaction summary…");
 
-    // initSummaryObjects creates an object keyed by ingredient name:
-    // {
-    //   "IBUPROFEN": {
-    //      ingredientName,
-    //      mentions: [],
-    //      nonMentions: [],
-    //      fdaLabelName,
-    //      fdaApplication,
-    //      dailyMedName,
-    //      dailyMedLink,
-    //   },
-    //   ...
-    // }
-    const summaries = initSummaryObjects(uniqueIngNames, labelMap);
+    const vettedIngNames = keptNodes.map((node) => node.ingredient);
 
-    // for each pair (A,B), check label text of A for B, and B for A...
+    const summaries = initSummaryObjects(vettedIngNames, labelMap);
+
+    // fill summaries by scanning pairs for mentions/non-mentions
     for (const [A, B] of pairs) {
       const aName = A.ingredient;
       const bName = B.ingredient;
-
+    
       const aPayload =
-        labelMap.get(aName.toUpperCase()) || {
-          lines: [],
-          fdaJsonLink: "",
-        };
+        labelMap.get(aName.toUpperCase()) || { lines: [], fdaJsonLink: "" };
       const bPayload =
-        labelMap.get(bName.toUpperCase()) || {
-          lines: [],
-          fdaJsonLink: "",
-        };
-
-      // textMentions(linesArray, needleSet) return hits: [{ index, matchText }, ...]
+        labelMap.get(bName.toUpperCase()) || { lines: [], fdaJsonLink: "" };
+    
       const aHits = textMentions(aPayload.lines, needleSetFor(B));
       const bHits = textMentions(bPayload.lines, needleSetFor(A));
-
-      // buildSnippets(fullText, hits) returns:
-      // [ { name: "OTHER_DRUG", snippet: "full sentence around match" }, ... ]
+    
       const aFullText = aPayload.lines.join(" ");
       const bFullText = bPayload.lines.join(" ");
-
+    
       if (aHits.length) {
         const snippetsForA = buildSnippets(aFullText, aHits);
         summaries[aName].mentions.push(...snippetsForA);
       } else {
         summaries[aName].nonMentions.push({ name: bName });
       }
-
+    
       if (bHits.length) {
         const snippetsForB = buildSnippets(bFullText, bHits);
         summaries[bName].mentions.push(...snippetsForB);
@@ -293,32 +387,28 @@ async function onAnalyze() {
       }
     }
 
-    // finalizeSummaries() dedupes mentions/nonMentions per ingredient
+    // finalize & render
     const summaryRows = finalizeSummaries(summaries);
     console.log("[Analyze] summaryRows:", summaryRows);
 
-
-    // 8. render table UI
     renderInteractionSummary($summaryBody, summaryRows);
     $sectionPairs.style.display = "";
-
 
     // 9. display status message including timing and any bad inputs w/ error message
     const t1 = performance.now();
     const elapsedSec = ((t1 - t0) / 1000).toFixed(2);
 
-    if (badNames.length > 0) {
-      const lineBreaks = badNames
-        .map((n) => `<span class="status-warning">Couldn't identify: ${n} — please check spelling or try the generic name.`)
-        .join("<br>");  
+    const skipBlock = buildSkipMessages();
 
+    if (skipBlock) {
       setStatus(
         $status,
-        `Analysis complete in ${elapsedSec}s.<br>${lineBreaks}`
+        `Analysis complete in ${elapsedSec}s.<br>${skipBlock}`
       );
     } else {
       setStatus($status, `Analysis complete in ${elapsedSec}s.`);
     }
+
 
 
     console.log(
@@ -354,6 +444,7 @@ function initSummaryObjects(uniqueIngNames, labelMap) {
         fdaApplication: "",
         dailyMedName: ingName,
         dailyMedLink: "",
+        fdaJsonLink: "",
       };
 
     obj[ingName] = {
@@ -362,11 +453,12 @@ function initSummaryObjects(uniqueIngNames, labelMap) {
       mentions: [],
       nonMentions: [],
 
-      // FDA side (what we actually parsed)
+      // FDA payload
       fdaLabelName: payload.fdaLabelName || ingName,
       fdaApplication: payload.fdaApplication || "",
+      fdaJsonLink: payload.fdaJsonLink || "",
 
-      // DailyMed side (public link)
+
       dailyMedName: payload.dailyMedName || ingName,
       dailyMedLink: payload.dailyMedLink || "",
     };
@@ -376,7 +468,7 @@ function initSummaryObjects(uniqueIngNames, labelMap) {
 
 
 // scours data for mentioned drug names with full sentence boundaries
-// trims ttext with elipses
+// trims ttext with ellipses
 function buildSnippets(fullText, hitNames) {
   const results = [];
   if (!fullText) return results;
@@ -386,62 +478,57 @@ function buildSnippets(fullText, hitNames) {
   for (const hitName of hitNames) {
     const needle = hitName.toLowerCase();
     const idx = lowerText.indexOf(needle);
-
     if (idx === -1) {
       results.push({ name: hitName, snippet: "" });
       continue;
     }
 
-    // 1. find rough sentence boundaries around the match
-    const pad = 150; 
-    const roughStart = Math.max(0, idx - pad);
-    const roughEnd = Math.min(fullText.length, idx + needle.length + pad);
-    let roughChunk = fullText.slice(roughStart, roughEnd);
-
-    // 2. expand roughChunk to full sentences.
-    const localIdx = idx - roughStart;
-
-    // find sentence start: walk left from localIdx until we hit (., ?, !) or string start
-    let startBoundary = localIdx;
-    while (startBoundary > 0) {
-      const ch = roughChunk[startBoundary - 1];
-      if (ch === "." || ch === "?" || ch === "!") {
-        break;
-      }
+    // 1. find sentence boundaries using "."
+    // find the previous "." before the match
+    let startBoundary = idx;
+    while (startBoundary > 0 && fullText[startBoundary - 1] !== ".") {
       startBoundary--;
     }
+    // skip the "." itself if we landed exactly on it
+    if (fullText[startBoundary] === ".") {
+      startBoundary++;
+    }
 
-    // find sentence end: walk right from localIdx until we hit (., ?, !) or string end
-    let endBoundary = localIdx;
-    while (endBoundary < roughChunk.length) {
-      const ch = roughChunk[endBoundary];
-      if (ch === "." || ch === "?" || ch === "!") {
-        endBoundary++;
-        break;
-      }
+    // find the next "." after the match
+    let endBoundary = idx;
+    while (endBoundary < fullText.length && fullText[endBoundary] !== ".") {
+      endBoundary++;
+    }
+    // include the period
+    if (endBoundary < fullText.length && fullText[endBoundary] === ".") {
       endBoundary++;
     }
 
-    let cleanChunk = roughChunk.slice(startBoundary, endBoundary);
+    let sentenceChunk = fullText.slice(startBoundary, endBoundary).trim();
 
-    // 3. clean up whitespace and awkward cut-offs
-    cleanChunk = cleanChunk.replace(/\s+/g, " ").trim();
+    // 2. highlight the hitName inside the chunk
+    const re = new RegExp(hitName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+    sentenceChunk = sentenceChunk.replace(
+      re,
+      (m) => `<mark style="background:yellow;color:#000;font-weight:bold;">${m}</mark>`
+    );
 
-    // 4. add ellipses if needed
-    const addLeadEllipsis = startBoundary > 0 || roughStart > 0;
-    const addTrailEllipsis =
-      endBoundary < roughChunk.length || roughEnd < fullText.length;
+    // 3. collapse whitespace
+    sentenceChunk = sentenceChunk.replace(/\s+/g, " ").trim();
+
+    const addLeadEllipsis = startBoundary > 0;
+    const addTrailEllipsis = endBoundary < fullText.length;
 
     if (addLeadEllipsis) {
-      cleanChunk = "…" + cleanChunk;
+      sentenceChunk = "…" + sentenceChunk;
     }
-    if (addTrailEllipsis && !cleanChunk.endsWith("…")) {
-      cleanChunk = cleanChunk + "…";
+    if (addTrailEllipsis && !sentenceChunk.endsWith("…")) {
+      sentenceChunk = sentenceChunk + "…";
     }
 
     results.push({
       name: hitName,
-      snippet: cleanChunk,
+      snippet: sentenceChunk, 
     });
   }
 
