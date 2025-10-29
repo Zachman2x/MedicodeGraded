@@ -55,6 +55,51 @@ $analyzeBtn.addEventListener("click", onAnalyze);
 
 refreshMedListUI();
 
+async function normalizeInputs(userInputs) {
+    const normalizedArray = await Promise.all(
+      userInputs.map((q) => normalizeToIngredients(q))
+    );
+    console.log("[Analyze] normalizedArray (raw):", normalizedArray);
+
+    // Split inputs into valid and invalid arrays
+    const validNormalized = [];
+    const badNames = [];
+    for (const n of normalizedArray) {
+      const isValid =
+        !n.error &&
+        Array.isArray(n.ingredients) &&
+        n.ingredients.length > 0;
+
+      if (isValid) {
+        validNormalized.push(n);
+      } else {
+        badNames.push(n.query || n.display || "");
+      }
+    }
+    return {validNormalized, badNames:badNames.filter(Boolean)};
+}
+
+function mapINGtoUserInputs(validNormalized){
+  const INGtoUserInputs = new Map();
+  for(const ING of validNormalized){
+      const userInputs = ING.query || ING.display || "";
+      if(!userInputs){
+        continue;
+      }
+      if(Array.isArray(ING.ingredients)){
+        for(const ing of ING.ingredients){
+          if(!ing || typeof ing !== "string") continue 
+          const key = ing.toUpperCase();
+          if(!INGtoUserInputs.has(key)){
+            INGtoUserInputs.set(key, new Set());
+          }
+          INGtoUserInputs.get(key).add(userInputs);
+        }
+      }
+  }
+  return INGtoUserInputs;
+}
+
 // Big Main Function
 // handler for Analyze Medicaiton button
 // validates inputs
@@ -89,59 +134,10 @@ async function onAnalyze() {
 
   try {
     // 2. Normalize each user-entered string
-    const normalizedArray = await Promise.all(
-      userInputs.map((q) => normalizeToIngredients(q))
-    );
-    console.log("[Analyze] normalizedArray (raw):", normalizedArray);
-
-    // Split inputs into valid and invalid arrays
-    const validNormalized = [];
-    const invalidNormalized = [];
-
-    for (const n of normalizedArray) {
-      const isValid =
-        !n.error &&
-        Array.isArray(n.ingredients) &&
-        n.ingredients.length > 0;
-
-      if (isValid) {
-        validNormalized.push(n);
-      } else {
-        invalidNormalized.push(n);
-      }
-    }
-
-    console.log("[Analyze] validNormalized:", validNormalized);
-    console.log("[Analyze] invalidNormalized:", invalidNormalized);
-
-    // if we have bad inputs, collect names
-    const badNames = invalidNormalized
-      .map((n) => n.query || n.display || "")
-      .filter(Boolean);
-
-      const ingToUserInputs = new Map();
-
-      for (const norm of validNormalized) {
-        const userText = norm.query || norm.display || "";
-        if (!userText) continue;
-      
-        if (Array.isArray(norm.ingredients)) {
-          for (const ing of norm.ingredients) {
-            if (!ing || typeof ing !== "string") continue;
-            const key = ing.toUpperCase();
-            if (!ingToUserInputs.has(key)) {
-              ingToUserInputs.set(key, new Set());
-            }
-            ingToUserInputs.get(key).add(userText);
-          }
-        }
-      }
-
-      console.log("[Analyze] ingToUserInputs:", ingToUserInputs);
-
-
-
-
+    // Normalize Input functions
+    const {validNormalized, badNames} = await normalizeInputs(userInputs); 
+    const INGtoUserInputs = mapINGtoUserInputs(validNormalized);
+    console.log("ING: ", INGtoUserInputs);
     // 3. if <2 valid meds remain
     if (validNormalized.length < 2) {
       const t1 = performance.now();
