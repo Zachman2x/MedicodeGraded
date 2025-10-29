@@ -233,7 +233,7 @@ async function onAnalyze() {
 
     for (const node of rejectedNodes) {
       const key = node.ingredient.toUpperCase();
-      const originals = ingToUserInputs.get(key);
+      const originals = INGtoUserInputs.get(key);
     
       if (originals && originals.size > 0) {
         // add every user-entered string that mapped to this ingredient
