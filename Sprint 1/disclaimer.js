@@ -28,45 +28,48 @@
     appRoot.classList.remove("app-locked");
   }
 
-  // local Storage Logic
-  let accepted = localStorage.getItem(STORAGE_KEY);
 
-  // if there's no value yet, first-time visitor:
-  // create ls variable as "false"
-  if (accepted === null) {
-    localStorage.setItem(STORAGE_KEY, "false");
-    accepted = "false";
+function ensureKey(){
+  let val = localStorage.getItem(STORAGE_KEY);
+  if(val == null){
+    localStorage.setItem(STORAGE_KEY,"false");
+    val = "false";
   }
+  return val;
+}
 
-  if (accepted === "true") {
-    // Returning visitor:
-    // - hide all overlays
-    // - unlock the app
+function enforceDisclaimerState(){
+  const accepted = ensureKey();
+  if (accepted === "true"){
     hide(gateOverlay);
     hide(declineOverlay);
     unlockApp();
-    console.log("User accepted disclaimer:", true);
-  } else {
-    // accepted === "false":
-    // They have NOT accepted:
-    // - show the main disclaimer first
-    // - hide the decline overlay
-    // - keep the app locked
+    console.log("[disclaimer accepted = true -> app unlocked");
+
+  }else{
     show(gateOverlay);
     hide(declineOverlay);
-    console.log("User accepted disclaimer:", false);
-
     lockApp();
+    console.log("[disclaimer accepted = false -> app locked");
   }
+}
+
+enforceDisclaimerState();
+
+setInterval(() => { 
+  const current = localStorage.getItem(STORAGE_KEY);
+  if(current === null){
+    console.log("[disclaimer] STORAGE_KEY missing mid-session -> re-locking app");
+    enforceDisclaimerState();
+  }
+}, 1000);
 
   // User ACCEPTS disclaimer
   btnAccept.addEventListener("click", () => {
     localStorage.setItem(STORAGE_KEY, "true");
     console.log("User accepted disclaimer:", true);
 
-    hide(gateOverlay);
-    hide(declineOverlay);
-    unlockApp();
+    enforceDisclaimerState();
   });
 
   // User DECLINES disclaimer
@@ -81,8 +84,6 @@
 
   // Return to Disclaimer Button
   btnBackToDisclaimer.addEventListener("click", () => {
-    hide(declineOverlay);
-    show(gateOverlay);
-    lockApp();
+    enforceDisclaimerState();
   });
 })();
